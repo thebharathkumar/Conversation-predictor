@@ -1,0 +1,22 @@
+# Environment
+.env
+venv/
+env/
+*.pyc
+__pycache__/
+
+# Data
+digital_therapist/data/*.db
+digital_therapist/data/*.json
+*.db
+
+# Reports
+reports/
+*.pdf
+*.png
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
