@@ -39,13 +39,25 @@ export default function Home() {
 
   const startSession = async () => {
     try {
+      console.log('Starting session for user:', userId);
       const response = await fetch('/api/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
       });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log('Session created:', data.sessionId);
+
+      if (!data.sessionId) {
+        throw new Error('No session ID returned');
+      }
+
       setSessionId(data.sessionId);
       setSessionStartTime(new Date());
       setIsSessionActive(true);
@@ -56,9 +68,9 @@ export default function Home() {
             "Welcome to your therapy session. I'm here to listen and support you. Feel free to share what's on your mind.",
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to start session:', error);
-      alert('Failed to start session. Please try again.');
+      alert(`Failed to start session: ${error.message}\n\nCheck console and see SETUP.md for help.`);
     }
   };
 
@@ -90,13 +102,17 @@ export default function Home() {
   };
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || !sessionId || isLoading) return;
+    if (!inputMessage.trim() || !sessionId || isLoading) {
+      console.log('Cannot send:', { inputMessage: !!inputMessage.trim(), sessionId, isLoading });
+      return;
+    }
 
     const userMessage: Message = {
       role: 'user',
       content: inputMessage,
     };
 
+    console.log('Sending message:', inputMessage);
     setMessages((prev) => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
@@ -116,10 +132,22 @@ export default function Home() {
         }),
       });
 
+      console.log('Chat response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
+      console.log('Chat response received');
 
       if (data.error) {
         throw new Error(data.error);
+      }
+
+      if (!data.response) {
+        throw new Error('No response from AI');
       }
 
       const assistantMessage: Message = {
@@ -130,7 +158,17 @@ export default function Home() {
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
       console.error('Failed to send message:', error);
-      alert(error.message || 'Failed to send message. Please try again.');
+      const errorMessage = `Failed to send message: ${error.message}\n\nTroubleshooting:\n1. Check browser console (F12)\n2. Ensure environment variables are set\n3. Visit /api/health to check setup\n4. See TROUBLESHOOTING.md for help`;
+      alert(errorMessage);
+
+      // Add error message to chat
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `⚠️ Error: ${error.message}\n\nPlease check your setup. Visit /api/health to verify configuration.`,
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
